@@ -93,15 +93,16 @@ fn main() -> ExitCode {
 
     match format {
         "json" => {
-            let entries: Vec<_> = per_lang
-                .iter()
-                .map(|(name, c)| json_obj(name, c))
-                .collect();
-            println!(
-                "{{\"total\":{},\"languages\":{}}}",
-                serde_none(),
-                serde_json_array(&entries)
-            );
+            print!("{{\"total\":");
+            write_json_counts(&mut std::io::stdout(), &total);
+            print!(",\"languages\":[");
+            let list: Vec<_> = sorted_langs(&per_lang, sort_key);
+            for (i, (name, c)) in list.iter().enumerate() {
+                if i > 0 { print!(","); }
+                print!("{{\"name\":\"{name}\",\"files\":{},\"code\":{},\"comments\":{},\"blanks\":{}}}",
+                    c.files, c.code, c.comments, c.blanks);
+            }
+            println!("]}}");
         }
         "csv" => {
             println!("language,files,code,comments,blanks");
@@ -138,20 +139,8 @@ fn width_of(map: &BTreeMap<&'static str, Counts>) -> usize {
     map.keys().map(|k| k.len()).max().unwrap_or(7).max(7)
 }
 
-fn serde_none() -> usize {
-    0
-}
 
-fn serde_json_array(_entries: &[String]) -> String {
-    "[]".to_string()
-}
 
-fn json_obj(name: &str, c: &Counts) -> String {
-    format!(
-        "{{\"name\":\"{name}\",\"files\":{},\"code\":{},\"comments\":{},\"blanks\":{}}}",
-        c.files, c.code, c.comments, c.blanks
-    )
-}
 
 fn collect_and_count(
     path: &Path,
@@ -217,4 +206,23 @@ fn count_file(
     let counts = counter::count_lines(&content, lang);
     per_lang.entry(lang.name).or_default().add(&counts);
     per_file.push((lang.name, path.to_path_buf(), counts));
+}
+
+fn sorted_langs(per_lang: &BTreeMap<&'static str, Counts>, sort_key: &str)
+    -> Vec<(&'static str, Counts)> {
+    let mut list: Vec<(&'static str, Counts)> =
+        per_lang.iter().map(|(k, c)| (*k, *c)).collect();
+    match sort_key {
+        "name" => list.sort_by(|a, b| a.0.cmp(b.0)),
+        "files" => list.sort_by_key(|(_, c)| c.files),
+        "comments" => list.sort_by_key(|(_, c)| c.comments),
+        "blanks" => list.sort_by_key(|(_, c)| c.blanks),
+        _ => list.sort_by_key(|(_, c)| c.code),
+    }
+    list
+}
+
+fn write_json_counts(w: &mut impl std::io::Write, c: &Counts) {
+    write!(w, "{{\"files\":{},\"code\":{},\"comments\":{},\"blanks\":{}}}",
+        c.files, c.code, c.comments, c.blanks).ok();
 }

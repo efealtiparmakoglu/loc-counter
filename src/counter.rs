@@ -58,7 +58,6 @@ enum LineKind {
 fn classify_line(line: &str, lang: &LangDef, state: &mut State) -> LineKind {
     let mut rest = line;
     let mut saw_code = false;
-    let mut started_in_block = state.in_block.is_some();
 
     loop {
         if let Some(closer) = state.in_block {
@@ -109,13 +108,11 @@ fn classify_line(line: &str, lang: &LangDef, state: &mut State) -> LineKind {
         }
     }
 
-    if saw_code || started_in_block && !rest.is_empty() && state.in_block.is_none() {
-        LineKind::Code
-    } else if started_in_block {
-        LineKind::Comment
-    } else {
-        LineKind::Comment
+    if saw_code {
+        return LineKind::Code;
     }
+    // Line lived entirely inside a block comment (or opened one).
+    LineKind::Comment
 }
 
 /// Advances past one string literal starting at rest[0] ('...' or "..."),
