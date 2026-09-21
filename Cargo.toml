@@ -1,0 +1,11 @@
+[package]
+name = "loc-counter"
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.70"
+description = "Lines-of-code counter with per-language comment/string awareness, driven by a built-in language table"
+license = "MIT"
+
+[profile.release]
+lto = true
+codegen-units = 1
